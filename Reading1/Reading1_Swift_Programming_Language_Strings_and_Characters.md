@@ -237,8 +237,8 @@ let newString = String(beginning)
 ##  Comparing Strings
 
 - `==` : compare characters one by one.
-- `hasPrefix(_:) : Match prefix
-- `hasSuffix(_:) : Match suffix
+- `hasPrefix(_:)` : Match prefix
+- `hasSuffix(_:)` : Match suffix
 
 
 
