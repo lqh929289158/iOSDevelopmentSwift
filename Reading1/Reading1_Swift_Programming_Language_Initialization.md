@@ -143,6 +143,192 @@ let twoByTwo = Size(width: 2.0, height: 2.0)
 
 ## Initializer Delegation for Value Types
 
+_Initializer delegation_ : Call another initializer in a initializer.
+
+Motivation : Avoid duplicating code.
+
+> NOTE: Initializer delegation for value types (structures and enumerations) is simpler. Because initializer can only delegate to another initializer provided by the value type. **NO inheritance**.
+
+Use `self.init` to refer to other initializers.
+
+> WARNING: If you have defined a custom initializer, the default initializer will be **invalid**.(Including memberwise initializer for structures)
+
+> NOTE: If you want to keep the default initializer, write custom initializer in an extension.
+
+```swift
+struct Size {
+    var width = 0.0, height = 0.0
+}
+struct Point {
+    var x = 0.0, y = 0.0
+}
+
+struct Rect {
+    var origin = Point()
+    var size = Size()
+    init() {}
+    init(origin: Point, size: Size) {
+        self.origin = origin
+        self.size = size
+    }
+    init(center: Point, size: Size) {
+        let originX = center.x - (size.width / 2)
+        let originY = center.y - (size.height / 2)
+        self.init(origin: Point(x: originX, y: originY), size: size)
+    }
+}
+
+let basicRect = Rect()
+// basicRect's origin is (0.0, 0.0) and its size is (0.0, 0.0)
+
+let originRect = Rect(origin: Point(x: 2.0, y: 2.0), size: Size(width: 5.0, height: 5.0))
+// originRect's origin is (2.0, 2.0) and its size is (5.0, 5.0)
+
+let centerRect = Rect(center: Point(x: 4.0, y: 4.0), size: Size(width: 3.0, height: 3.0))
+// centerRect's origin is (2.5, 2.5) and its size is (3.0, 3.0)
+```
+
+## Class Inheritance and Initialization
+
+> WARNING: **ALL** stored properties of class, _must_ be assigned an initial value during initialization.
+
+### Designated Initializers and Convenience Initializers
+
+- _Designated Initializers_
+  - Primary
+  - Few, usually have only one
+  - At least one( maybe inheriting one or more designated initializers from a superclass [Automatic Initializer Inheritance](https://docs.swift.org/swift-book/LanguageGuide/Initialization.html#ID222)
+- _Convenience Initializers_
+  - Secondary
+  - To call a designated initializer with some of the designated initializer's parameters set to default values.
+  - To create an instance of that class for a specific use case or input value type.
+ 
+ 
+ ### Syntax for Designated and Convenience Initializers
+ 
+ - Designated:
+ ```swift
+ init(parameters) {
+    statements
+}
+```
+
+- Convenience:
+```swift
+convenience init(parameters) {
+    statements
+}
+```
+
+### Initializer Delegation for Class Types
+
+**Three rules:**
+
+- A designated initializer must call a designated initializer from its immediate superclass.
+- A convenience initializer must call another initializer from the same class.
+- A convenience initializer must ultimately call a designated initializer.
+
+Simpler way to say:
+
+- **Designated _Up_**
+- **Convenience _Across_**
+
+![Class initializer delegation](https://docs.swift.org/swift-book/_images/initializerDelegation01_2x.png)
+
+More complex example:
+![Class initializer delegation](https://docs.swift.org/swift-book/_images/initializerDelegation02_2x.png)
+
+### Two-Phase Initialization
+
+- First phase: Each stored property is assigned an initial value.
+- Second phase: Each class is given the chance to customize its stored properties further before the instance is ready.
+
+Why two phases?
+
+- Prevent property value from being accessed before initialization
+- Prevent property value from being set to a different value by another initializer unexpectedly.
+
+Four **safety-check**:
+
+- Designated initializer _must_ initialize all properties introduced by **its** class **before delegation**.
+- Designated initializer _must_ delegate up **before** assigning value to **inherited property**.
+- Convenience initializer _must_ delegate **before** assigning value to **any** property.
+- Initializer _CAN NOT_ :
+  - Call _any_ instance methods.
+  - Read values of _any instance properties.
+  - Refer to `self` as a value unless **first phase complete**(All properties set).
+
+**Phase 1**
+- Designated/Convenience initializer is called.
+- Memory of the instance is allocated.
+- Designated confirm all stored properties introduced by **its** class have value. Memory initialized.
+- Designated delegate up. Make sure inherited properties initialized.
+- Continue until the class inheritence chain complete!
+
+**Phase 2**
+- From top to down. Each designated can customize the instance.
+  - Access `self`
+  - Modify properties
+  - Call instance methods.
+
+Phase 1 illustration:
+![Phase1](https://docs.swift.org/swift-book/_images/twoPhaseInitialization01_2x.png)
+Phase 2 illustration:
+![Phase2](https://docs.swift.org/swift-book/_images/twoPhaseInitialization02_2x.png)
+
+### Initializer Inheritance and Overriding
+
+> WARNING: In Swift, subclass **DO NOT** inherit initializers from its superclass _by default_.
+
+> NOTE: But in certain safe circumstances, superclass initializers is inherited. See [Automatic Initializer Inheritance](https://docs.swift.org/swift-book/LanguageGuide/Initialization.html#ID222)
+
+If you are writing a initializer that _matches_ a superclass's **designated** initializer, you have to add `override` before initializer. This is true even if you are overriding an automatically provided _default initializer_ or you are writing a convenience initializer.
+
+If you are writing a initializer that _matches_ a superclass's **convenience** initializer, you **DO NOT** add `override`. Because superclass convenience initializer will never be called in subclass. See [Initializer Delegation for Class Types](https://docs.swift.org/swift-book/LanguageGuide/Initialization.html#ID219)
+
+```swift
+class Vehicle {
+    var numberOfWheels = 0
+    var description: String {
+        return "\(numberOfWheels) wheel(s)"
+    }
+}
+
+//Must delegate up, then customize!
+class Bicycle: Vehicle {
+    override init() {
+        super.init()
+        numberOfWheels = 2
+    }
+}
+
+class Hoverboard: Vehicle {
+    var color: String
+    init(color: String) {
+        self.color = color
+        // super.init() implicitly called here
+    }
+    override var description: String {
+        return "\(super.description) in a beautiful \(color)"
+    }
+}
+
+```
+
+> NOTE: Subclasses can modify inherited variable properties during initialization, but **CAN NOT** modify inherited constant properties.
+
+### Automatic Initializer Inheritance
+
+**Assumption**: All new properties introduced by subclass have default values.
+
+- **Rule 1**: If subclass has **NO designated**, it inherits **all** superclass designated automatically.
+- **Rule 2**: If subclass implements **ALL** superclass designated, it inherits **ALL** superclass convenience automatically.
+  - Inherits superclass designated by **Rule 1**.
+  - Implements superclass designated by customizing definition.
+
+> If **Rule 2** satisfied, subclass can implement superclass designated as subclass convenience.
+
+### Designated and Conveience Initializers in Action
 
 
 
