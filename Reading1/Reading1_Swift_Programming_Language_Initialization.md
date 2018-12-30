@@ -330,5 +330,140 @@ class Hoverboard: Vehicle {
 
 ### Designated and Conveience Initializers in Action
 
+```swift
+class Food {
+    var name: String
+    init(name: String) {
+        self.name = name
+    }
+    convenience init() {
+        self.init(name: "[Unnamed]")
+    }
+}
 
+class RecipeIngredient: Food {
+    var quantity: Int
+    init(name: String, quantity: Int) {
+        self.quantity = quantity
+        super.init(name: name)
+    }
+    //Since superclass designated has been implemented below,
+    //all superclass convenience are inherited ( init() )
+    override convenience init(name: String) {
+        self.init(name: name, quantity: 1)
+    }
+}
 
+class ShoppingListItem: RecipeIngredient {
+    var purchased = false
+    var description: String {
+        var output = "\(quantity) x \(name)"
+        output += purchased ? " ✔" : " ✘"
+        return output
+    }
+}
+//No custom initializer, so, all designated and convenience inherited.
+```
+
+![Initializer chain](https://docs.swift.org/swift-book/_images/initializersExample03_2x.png)
+
+```swift
+var breakfastList = [
+    ShoppingListItem(),
+    ShoppingListItem(name: "Bacon"),
+    ShoppingListItem(name: "Eggs", quantity: 6),
+]
+breakfastList[0].name = "Orange juice"
+breakfastList[0].purchased = true
+for item in breakfastList {
+    print(item.description)
+}
+// 1 x Orange juice ✔
+// 1 x Bacon ✘
+// 6 x Eggs ✘
+```
+
+## Failable Initializers
+
+`init?`
+
+Motivation: Cope with invalid parameter, absence of required external resource...
+
+> WARNING: Failable and nonfailable initializers **CAN NOT** match (The same parameter types and names).
+
+```swift
+struct Animal {
+    let species: String
+    init?(species: String) {
+        if species.isEmpty { return nil }
+        self.species = species
+    }
+}
+
+let anonymousCreature = Animal(species: "")
+// anonymousCreature is of type Animal?, not Animal
+
+if anonymousCreature == nil {
+    print("The anonymous creature could not be initialized")
+}
+// Prints "The anonymous creature could not be initialized"
+```
+
+> WARNING: `""` empty string is a valid, nonoptional `String`. It is not `nil`.
+
+### Failable Initializers for Enumerations
+
+```swift
+enum TemperatureUnit {
+    case kelvin, celsius, fahrenheit
+    init?(symbol: Character) {
+        switch symbol {
+        case "K":
+            self = .kelvin
+        case "C":
+            self = .celsius
+        case "F":
+            self = .fahrenheit
+        default:
+            return nil
+        }
+    }
+}
+```
+
+### Failable Initializers for Enumerations with Raw Values
+
+Default failable initializer. If no matching, return `nil`.
+
+```swift
+enum TemperatureUnit: Character {
+    case kelvin = "K", celsius = "C", fahrenheit = "F"
+}
+```
+
+### Propagation of Initialization Failure
+
+Delegate across in the same class, or delegate up to superclass.
+
+> NOTE: A failable initializer can also delegate to a nonfailable initializer.
+
+```swift
+class Product {
+    let name: String
+    init?(name: String) {
+        if name.isEmpty { return nil }
+        self.name = name
+    }
+}
+
+class CartItem: Product {
+    let quantity: Int
+    init?(name: String, quantity: Int) {
+        if quantity < 1 { return nil }
+        self.quantity = quantity
+        super.init(name: name)
+    }
+}
+```
+
+### Overriding a Failable Initializer
