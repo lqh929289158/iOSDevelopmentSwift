@@ -467,3 +467,115 @@ class CartItem: Product {
 ```
 
 ### Overriding a Failable Initializer
+
+You can override a superclass failable initializer in a subclass.
+
+You can also override a superclass failable initializer with a subclass _nonfailable_ initializer.
+
+> NOTE: If you override a failable superclass initializer with a nonfailable subclass initializer, the _only_ way to delegate up to the superclass initializer is to **Force-unwrap** the result of the failable superclass initializer.
+
+```swift
+class Document {
+    var name: String?
+    // this initializer creates a document with a nil name value
+    init() {}
+    // this initializer creates a document with a nonempty name value
+    init?(name: String) {
+        if name.isEmpty { return nil }
+        self.name = name
+    }
+}
+
+class AutomaticallyNamedDocument: Document {
+    override init() {
+        super.init()
+        self.name = "[Untitled]"
+    }
+    override init(name: String) {
+        super.init()
+        if name.isEmpty {
+            self.name = "[Untitled]"
+        } else {
+            self.name = name
+        }
+    }
+}
+
+class UntitledDocument: Document {
+    override init() {
+        super.init(name: "[Untitled]")!
+    }
+}
+```
+
+### The `init!` Failable Initializer
+
+Implicitly unwrapped optional instance.
+
+You can:
+- Delegate from `init?` to `init!`
+- Delegate from `init!` to `init?`
+- Override `init?` with `init!`
+- Override `init!` with `init?`
+- Delegate from `init` to `init!` (May fail)
+
+## Required Initializers
+
+All subclass of the class _must_ implement that initializer.
+
+```swift
+class SomeClass {
+    required init() {
+        // initializer implementation goes here
+    }
+}
+
+class SomeSubclass: SomeClass {
+    required init() {
+        // subclass implementation of the required initializer goes here
+    }
+}
+```
+
+> NOTE: You do not have to provide an explicit implementation of a required initializer if you can satisfy the requirement with an inherited initializer.
+
+## Setting a Default Property Value with a Closure or Function
+
+Skeleton:
+```swift
+class SomeClass {
+    let someProperty: SomeType = {
+        // create a default value for someProperty inside this closure
+        // someValue must be of the same type as SomeType
+        return someValue
+    }()
+}
+```
+
+> NOTE: The `()` following the closure means executing closure _immediately_.
+
+> WARNING: If you omit `()`, you are trying assigning the closure **itself**, not the **return value**.
+
+> WARNING: You **CAN NOT** access _any_ other property values from closure. Neither `self`. Neither instance methods.
+
+```swift
+struct Chessboard {
+    let boardColors: [Bool] = {
+        var temporaryBoard = [Bool]()
+        var isBlack = false
+        for i in 1...8 {
+            for j in 1...8 {
+                temporaryBoard.append(isBlack)
+                isBlack = !isBlack
+            }
+            isBlack = !isBlack
+        }
+        return temporaryBoard
+    }()
+    func squareIsBlackAt(row: Int, column: Int) -> Bool {
+        return boardColors[(row * 8) + column]
+    }
+}
+
+```
+
