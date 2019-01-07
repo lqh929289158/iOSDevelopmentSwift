@@ -72,7 +72,26 @@ _Type cast operator_ `as`. `as?` `as!`
 
 `as?` returns an optional value of the type you are trying to downcast to. Return `nil` when downcasting fails.
 
-`as!` attempts the downcast and force-unwraps the result as a single compund action. Runtime error when downcasting fails
+`as!` attempts the downcast and force-unwraps the result as a single compund action. Runtime error when downcasting fails.
+
+```swift
+for item in library {
+    if let movie = item as? Movie {
+        print("Movie: \(movie.name), dir. \(movie.director)")
+    } else if let song = item as? Song {
+        print("Song: \(song.name), by \(song.artist)")
+    }
+}
+```
+
+> NOTE: Casting **DOES NOT** modify the instance. It is simply treated and accessed as an instance of the type casted.
+
+## Type Casting for Any and AnyObject
+
+- `Any` represent an instance of any type at all, including function types.
+- `AnyObject` represent an instance of any class type.
+
+
 
 
 
