@@ -435,6 +435,59 @@ Meaning: Any type that is a subclass of `Location` and conforms to the `Named` p
 
 ## Checking for Protocol Conformance
 
+The same way as checking for type.
+
+- `is` operator returns `true` if an instance conforms to a protocol and return `false` otherwise.
+- `as?` returns `nil` optional if instance doesn't conform to a protocol.
+- `as!` forces downcast to the protocol type and will trigger runtime error if fails.
+
+```swift
+protocol HasArea {
+    var area: Double { get }
+}
+
+class Circle: HasArea {
+    let pi = 3.1415927
+    var radius: Double
+    var area: Double { return pi * radius * radius }
+    init(radius: Double) { self.radius = radius }
+}
+class Country: HasArea {
+    var area: Double
+    init(area: Double) { self.area = area }
+}
+
+class Animal {
+    var legs: Int
+    init(legs: Int) { self.legs = legs }
+}
+```
+
+Although the three classes have no shared base class, they are all `class`. Use `AnyObject`
+
+```swift
+let objects: [AnyObject] = [
+    Circle(radius: 2.0),
+    Country(area: 243_610),
+    Animal(legs: 4)
+]
+
+for object in objects {
+    if let objectWithArea = object as? HasArea {
+        print("Area is \(objectWithArea.area)")
+    } else {
+        print("Something that doesn't have an area")
+    }
+}
+// Area is 12.5663708
+// Area is 243610.0
+// Something that doesn't have an area
+```
+
+## Optional Protocol Requirements
+
+`optional` requirements don't have to be implemented by types that conform to the protocol.
+
 
 
 
