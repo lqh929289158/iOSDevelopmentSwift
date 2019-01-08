@@ -488,6 +488,130 @@ for object in objects {
 
 `optional` requirements don't have to be implemented by types that conform to the protocol.
 
+But you have to mark `@objc`.
+
+The property or method in an optional requirement auotomatically becomes an optional. e.g. `(Int) -> String` -> `((Int) -> String)?`
+
+```swift
+@objc protocol CounterDataSource {
+    @objc optional func increment(forCount count: Int) -> Int
+    @objc optional var fixedIncrement: Int { get }
+}
+
+class Counter {
+    var count = 0
+    var dataSource: CounterDataSource?
+    func increment() {
+        if let amount = dataSource?.increment?(forCount: count) {
+            count += amount
+        } else if let amount = dataSource?.fixedIncrement {
+            count += amount
+        }
+    }
+}
+
+class ThreeSource: NSObject, CounterDataSource {
+    let fixedIncrement = 3
+}
+```
+
+```swift
+var counter = Counter()
+counter.dataSource = ThreeSource()
+for _ in 1...4 {
+    counter.increment()
+    print(counter.count)
+}
+// 3
+// 6
+// 9
+// 12
+```
+
+```swift
+class TowardsZeroSource: NSObject, CounterDataSource {
+    func increment(forCount count: Int) -> Int {
+        if count == 0 {
+            return 0
+        } else if count < 0 {
+            return 1
+        } else {
+            return -1
+        }
+    }
+}
+```
+
+```swift
+counter.count = -4
+counter.dataSource = TowardsZeroSource()
+for _ in 1...5 {
+    counter.increment()
+    print(counter.count)
+}
+// -3
+// -2
+// -1
+// 0
+// 0
+```
+
+## Protocol Extensions (Difficult?)
+
+Protocol can be extended to provide method, initializer, subscript, and computed property implementations to conforming types.
+
+This allows you to define **behavior** on protocol _themselves_, rather than in each type's **inidivdual conformance** or in a **global function**.
+
+```swift
+extension RandomNumberGenerator {
+    func randomBool() -> Bool {
+        return random() > 0.5
+    }
+}
+```
+So, all conforming types automatically gain this method `randomBool()`.
+
+```swift
+let generator = LinearCongruentialGenerator()
+print("Here's a random number: \(generator.random())")
+// Prints "Here's a random number: 0.3746499199817101"
+print("And here's a random Boolean: \(generator.randomBool())")
+// Prints "And here's a random Boolean: true"
+```
+
+### Providing Default Implementations
+
+Provide a default implementation to any method or computed property defined in protocol.
+
+The default implementation will be replaced by the one provided by the conforming type.
+
+```swift
+extension PrettyTextRepresentable  {
+    var prettyTextualDescription: String {
+        return textualDescription
+    }
+}
+```
+
+### Adding Constraints to Protocol Extensions
+
+Use `where` clause after the name of protocol to specify constraints that conforming types must satisfy before the methods and properties of the extension are available.
+
+```swift
+extension Collection where Element: Equatable {
+    func allEqual() -> Bool {
+        for element in self {
+            if element != self.first {
+                return false
+            }
+        }
+        return true
+    }
+}
+```
+
+
+
 
 
 
