@@ -610,6 +610,18 @@ extension Collection where Element: Equatable {
 }
 ```
 
+```swift
+print(equalNumbers.allEqual())
+// Prints "true"
+print(differentNumbers.allEqual())
+// Prints "false"
+```
+
+> NOTE: If a conforming type satisfies the requirements for multiple constrained extensions that provide implementations for the same method or property, Swift uses the implementation corresponding to the most specialized constraints.
+
+In a word, same type, same method/property -> Use the implementation with most specialized constraints.
+
+
 
 
 
