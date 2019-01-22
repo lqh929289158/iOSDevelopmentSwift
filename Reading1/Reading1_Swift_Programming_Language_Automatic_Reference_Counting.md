@@ -134,6 +134,220 @@ unit4A = nil
 
 ![Weak Reference No Deadlock](https://docs.swift.org/swift-book/_images/weakReference03_2x.png)
 
+### Unowned References
+
+Used when the other instance has the **same** or **longer** lifetime. Keyword: `unowned`.
+
+An unowned reference is expected to always have a value. So ARC never sets an unowned reference to `nil`, which means that unowned references are defined using **nonoptional** types.
+
+> NOTE: If you try to access the value of an unowned reference that has been deallocated, you will get a **runtime error**.
+
+New example `Customer` and `CreditCard`. Differnce: `CreditCard` must has one owner.
+
+```swift
+class Customer {
+    let name: String
+    var card: CreditCard?
+    init(name: String) {
+        self.name = name
+    }
+    deinit { print("\(name) is being deinitialized") }
+}
+
+class CreditCard {
+    let number: UInt64
+    unowned let customer: Customer
+    init(number: UInt64, customer: Customer) {
+        self.number = number
+        self.customer = customer
+    }
+    deinit { print("Card #\(number) is being deinitialized") }
+}
+```
+```swift
+var john: Customer?
+john = Customer(name: "John Appleseed")
+john!.card = CreditCard(number: 1234_5678_9012_3456, customer: john!)
+```
+
+![Unowned reference illustration](https://docs.swift.org/swift-book/_images/unownedReference01_2x.png)
+
+```swift
+john = nil
+// Prints "John Appleseed is being deinitialized"
+// Prints "Card #1234567890123456 is being deinitialized"
+```
+
+Because there is no strong references to the `Customer` instance, it is deallocated. And, the `CreditCard` is also deallocated.
+
+> NOTE: There is a type called `unowned(unsafe)`. Different from `unowned`, if you try to access it after it is deallocated, you will get the value in the same location in memory, which is an unsafe operation.
+
+### Unowned References and Implicitly Unwrapped Optional Properties
+
+- First scenario: `Person` and `Apartment`, both allowed to be `nil`.
+- Second scenario: `Customer` and `CreditCard`, one of the property is not allowed to be `nil`.
+- **Third scenario**: `Country` and `City`, both properties should always have a value.
+
+```swift
+class Country {
+    let name: String
+    var capitalCity: City!
+    init(name: String, capitalName: String) {
+        self.name = name
+        self.capitalCity = City(name: capitalName, country: self)
+    }
+}
+
+class City {
+    let name: String
+    unowned let country: Country
+    init(name: String, country: Country) {
+        self.name = name
+        self.country = country
+    }
+}
+```
+
+The initializer for `Country` **CAN NOT** pass `self` to `City` until a new `Country` instance is fully initialized.
+
+To deal with it, the annotation `City!` is used. That means that the `capitalCity` property has a default value of `nil`, but can be accessed without unwrapping. Since, property `name` and `captialCity` both have initial values, we can pass `self` to `City` initializer.
+
+```swift
+var country = Country(name: "Canada", capitalName: "Ottawa")
+print("\(country.name)'s capital city is called \(country.capitalCity.name)")
+// Prints "Canada's capital city is called Ottawa"
+```
+
+## Strong Reference Cycles for Closures
+
+A strong reference cycle may occur if you assign a **closure** to a **property or method** of a class instance.
+
+Why? Because, **Closure are REFERENCED TYPES**.
+
+Swift provides an elegant solution called _closure capture list_.
+
+```swift
+class HTMLElement {
+
+    let name: String
+    let text: String?
+
+    lazy var asHTML: () -> String = {
+        if let text = self.text {
+            return "<\(self.name)>\(text)</\(self.name)>"
+        } else {
+            return "<\(self.name) />"
+        }
+    }
+
+    init(name: String, text: String? = nil) {
+        self.name = name
+        self.text = text
+    }
+
+    deinit {
+        print("\(name) is being deinitialized")
+    }
+
+}
+```
+
+The `asHTML` property is named and used like an instance method. BUT, it is a closure of referenced type. You can replace the default value of the `asHTML` with a custom closure.
+
+```swift
+let heading = HTMLElement(name: "h1")
+let defaultText = "some default text"
+heading.asHTML = {
+    return "<\(heading.name)>\(heading.text ?? defaultText)</\(heading.name)>"
+}
+print(heading.asHTML())
+// Prints "<h1>some default text</h1>"
+```
+
+> NOTE: The property `asHTML` is labeled as `lazy`, so you can access `self`, because the `asHTML` will only evaluated when ued.
+
+```swift
+var paragraph: HTMLElement? = HTMLElement(name: "p", text: "hello, world")
+print(paragraph!.asHTML())
+// Prints "<p>hello, world</p>"
+```
+
+Unfortunately, the `HTMLElement` class creates a strong reference cycle between the class and the closure.
+
+![Closure strong referecne cycle](https://docs.swift.org/swift-book/_images/closureReferenceCycle01_2x.png)
+
+> NOTE: Even though the closure refers to `self` multiple times, it only captures one strong reference to the `HTMLElement` instance.
+
+## Resolving Strong Reference Cycles for Closures
+
+Defining a _capture list_.
+
+A capture list defines the rules to use when capturing one or more reference types within the closure's body.
+
+> WARNING: Swift requires you to write `self.property` or `self.method` to remind you.
+
+### Defining a Capture List
+
+```swift
+lazy var someClosure: (Int, String) -> String = {
+    [unowned self, weak delegate = self.delegate!] (index: Int, stringToProcess: String) -> String in
+    // closure body goes here
+}
+```
+
+If a closure does not specify a parameter list or return type because they can be inferred from context, place the capture list at the very start of the closure, followed by the in keyword:
+
+```swift
+lazy var someClosure: () -> String = {
+    [unowned self, weak delegate = self.delegate!] in
+    // closure body goes here
+}
+```
+
+### Weak and Unowned References
+
+Define a capture in a closure as an unowned reference when the closure and the instance it captures will always refer to each other, and will always be **deallocated at the same time**.
+
+Conversely, define a capture as a weak reference when the captured reference may become `nil` at some point in the future. Weak references are always of an optional type, and automatically become `nil` when the instance they reference is deallocated. This enables you to check for their existence within the closure’s body.
+
+```swift
+class HTMLElement {
+
+    let name: String
+    let text: String?
+
+    lazy var asHTML: () -> String = {
+        [unowned self] in
+        if let text = self.text {
+            return "<\(self.name)>\(text)</\(self.name)>"
+        } else {
+            return "<\(self.name) />"
+        }
+    }
+
+    init(name: String, text: String? = nil) {
+        self.name = name
+        self.text = text
+    }
+
+    deinit {
+        print("\(name) is being deinitialized")
+    }
+
+}
+```
+
+```swift
+var paragraph: HTMLElement? = HTMLElement(name: "p", text: "hello, world")
+print(paragraph!.asHTML())
+// Prints "<p>hello, world</p>"
+
+paragraph = nil
+// Prints "p is being deinitialized"
+```
+
+![Capture list illustration](https://docs.swift.org/swift-book/_images/closureReferenceCycle02_2x.png)
+
 
 
 
